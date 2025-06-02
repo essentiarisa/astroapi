@@ -85,8 +85,8 @@ def get_planet_positions():
             "sign": deg_to_sign(deg)
         }
 
-        # ハウス計算（Placidius）
-        ascmc, cusps = swe.houses(jd, lat, lon.encode('utf-8') if isinstance(lon, str) else lon, b'P')
+        # ハウス計算（Porphyry方式）
+        ascmc, cusps = swe.houses(jd, lat, lon.encode('utf-8') if isinstance(lon, str) else lon, b'O')
         houses = {f"House {i+1}": round(cusp, 2) for i, cusp in enumerate(cusps)}
         ascmc_result = {
             "ASC": round(ascmc[0], 2),
