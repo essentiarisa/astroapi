@@ -5,15 +5,16 @@ import swisseph as swe
 from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
-signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
+# JST to UTC
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
     dt_utc = dt_jst.astimezone(pytz.utc)
     return dt_utc
 
+# Location geocode
 def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(location_name)
@@ -22,14 +23,8 @@ def get_lat_lon_from_location(location_name):
     else:
         raise ValueError("Location not found")
 
-def format_angle(angle):
-    degree = round(angle % 30, 2)
-    sign_index = int(angle / 30) % 12
-    sign = signs[sign_index]
-    return f"{sign} {degree:.1f}°"
-
 @app.route('/planet', methods=['POST'])
-def get_astrology_data():
+def get_planet_positions():
     data = request.json
     try:
         year = int(data['year'])
@@ -47,8 +42,7 @@ def get_astrology_data():
             return jsonify({"error": "Location not provided"}), 400
 
         dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
-        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
-                        dt_utc.hour + dt_utc.minute / 60.0)
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, dt_utc.hour + dt_utc.minute / 60.0)
 
         swe.set_topo(longitude, latitude, 0)
 
@@ -67,36 +61,35 @@ def get_astrology_data():
             "TrueNode": swe.TRUE_NODE
         }
 
-        # ハウス計算（Porphyry方式）
-        cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
-        cusp_list = list(cusps) + [cusps[0] + 360]  # for wrapping
-
-        houses = {}
-        houses_formatted = {}
-        for i in range(12):
-            angle = round(cusps[i], 2)
-            houses[f"House{i+1}"] = angle
-            houses_formatted[f"House{i+1}"] = format_angle(angle)
-
-        angles = {
-            "ASC": round(ascmc[0], 2),
-            "MC": round(ascmc[1], 2)
-        }
-
         results = {}
         planet_houses = {}
+        retrogrades = {}
+
+        cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
+        cusp_list = list(cusps) + [cusps[0] + 360]
+        houses = {}
+        for i in range(12):
+            deg = cusp_list[i] % 360
+            degree = round(deg % 30, 1)
+            sign = signs[int(deg / 30)]
+            houses[f"House{i+1}"] = f"{sign} {degree}°"
+
+        angles = {
+            "ASC": round(ascmc[0], 1),
+            "MC": round(ascmc[1], 1)
+        }
 
         for name, planet in planets.items():
-            lon = swe.calc_ut(jd, planet)[0]
-            results[name] = {
-                "degree": round(lon, 2),
-                "formatted": format_angle(lon)
-            }
+            lon, lat, dist, speed_lon = swe.calc_ut(jd, planet)[0:4]
+            degree = round(lon % 30, 1)
+            sign_index = int(lon / 30)
+            sign = signs[sign_index]
+            results[name] = f"{sign} {degree}°"
+            retrogrades[name] = speed_lon < 0
 
-            # ハウス番号判定
             for i in range(12):
-                if cusp_list[i] <= lon < cusp_list[i + 1]:
-                    planet_houses[name] = f"House {i + 1}"
+                if cusp_list[i] <= lon < cusp_list[i+1]:
+                    planet_houses[name] = f"House {i+1}"
                     break
 
         return jsonify({
@@ -104,12 +97,11 @@ def get_astrology_data():
             "latitude": latitude,
             "longitude": longitude,
             "planets": results,
+            "retrograde_status": retrogrades,
             "planet_houses": planet_houses,
             "houses": houses,
-            "houses_formatted": houses_formatted,
             "angles": angles
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
