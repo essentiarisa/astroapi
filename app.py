@@ -5,31 +5,25 @@ import swisseph as swe
 from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
+signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
-signs = [
-    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
-]
 
-# JST to UTC
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
-    return dt_jst.astimezone(pytz.utc)
+    dt_utc = dt_jst.astimezone(pytz.utc)
+    return dt_utc
 
-# Location resolution
+
 def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(location_name)
     if location:
         return location.latitude, location.longitude
-    raise ValueError("Location not found")
+    else:
+        raise ValueError("Location not found")
 
-# Degree to Zodiac format
-def deg_to_sign(degree):
-    sign_index = int(degree // 30)
-    deg_in_sign = round(degree % 30, 1)
-    return f"{signs[sign_index]} {deg_in_sign}°"
 
 @app.route('/planet', methods=['POST'])
 def get_planet_positions():
@@ -41,7 +35,7 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
-        # Location resolution
+        # Location handling
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
@@ -54,41 +48,59 @@ def get_planet_positions():
         jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
                         dt_utc.hour + dt_utc.minute / 60.0)
 
+        # Set topocentric position
         swe.set_topo(longitude, latitude, 0)
 
         planets = {
-            "Sun": swe.SUN, "Moon": swe.MOON, "Mercury": swe.MERCURY,
-            "Venus": swe.VENUS, "Mars": swe.MARS, "Jupiter": swe.JUPITER,
-            "Saturn": swe.SATURN, "Uranus": swe.URANUS, "Neptune": swe.NEPTUNE,
-            "Pluto": swe.PLUTO, "MeanNode": swe.MEAN_NODE, "TrueNode": swe.TRUE_NODE
+            "Sun": swe.SUN,
+            "Moon": swe.MOON,
+            "Mercury": swe.MERCURY,
+            "Venus": swe.VENUS,
+            "Mars": swe.MARS,
+            "Jupiter": swe.JUPITER,
+            "Saturn": swe.SATURN,
+            "Uranus": swe.URANUS,
+            "Neptune": swe.NEPTUNE,
+            "Pluto": swe.PLUTO,
+            "MeanNode": swe.MEAN_NODE,
+            "TrueNode": swe.TRUE_NODE
         }
 
-        planet_results = {}
+        results = {}
         planet_houses = {}
-        retro_flags = {}
+        retrogrades = {}
 
-        # ハウス計算（Porphyry）
+        # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
-        cusp_list = list(cusps) + [cusps[0] + 360]
-
-        house_cusps = {}
+        houses = {}
+        cusp_signs = {}
         for i in range(12):
-            house_cusps[f"House{i+1}"] = deg_to_sign(cusps[i])
+            lon = cusps[i] % 360
+            deg = lon % 30
+            sign_index = int(lon / 30)
+            sign = signs[sign_index]
+            houses[f"House{i+1}"] = round(lon, 2)
+            cusp_signs[f"House{i+1}"] = f"{sign} {deg:.1f}°"
 
         angles = {
-            "ASC": deg_to_sign(ascmc[0]),
-            "MC": deg_to_sign(ascmc[1])
+            "ASC": round(ascmc[0], 2),
+            "MC": round(ascmc[1], 2)
         }
 
+        # ハウス判定用カスプ +360 wrap
+        cusp_list = list(cusps) + [cusps[0] + 360]
+
         for name, planet in planets.items():
-            pos_data = swe.calc_ut(jd, planet)
-            lon = pos_data[0]
-            speed = pos_data[3] if len(pos_data) > 3 else 0
-            planet_results[name] = deg_to_sign(round(lon, 2))
-            retro_flags[name] = speed < 0
+            result, ret = swe.calc_ut(jd, planet)
+            lon = result[0] % 360
+            deg = lon % 30
+            sign_index = int(lon / 30)
+            sign = signs[sign_index]
+            results[name] = f"{sign} {deg:.1f}°"
+            retrogrades[name] = ret[0] < 0  # 逆行判定
 
             for i in range(12):
-                if cusp_list[i] <= lon < cusp_list[i+1]:
+                if cusp_list[i] <= lon < cusp_list[i + 1]:
                     planet_houses[name] = f"House {i+1}"
                     break
 
@@ -96,15 +108,15 @@ def get_planet_positions():
             "input_datetime_utc": dt_utc.strftime("%Y-%m-%d %H:%M"),
             "latitude": latitude,
             "longitude": longitude,
-            "planets": planet_results,
-            "retrograde_flags": retro_flags,
+            "planets": results,
             "planet_houses": planet_houses,
-            "house_cusps": house_cusps,
+            "retrograde": retrogrades,
+            "houses": cusp_signs,
             "angles": angles
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
 
 if __name__ == '__main__':
     app.run(debug=True)
