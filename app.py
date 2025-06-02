@@ -8,13 +8,11 @@ app = Flask(__name__)
 signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
          "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
-
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
     dt_utc = dt_jst.astimezone(pytz.utc)
     return dt_utc
-
 
 def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
@@ -23,7 +21,6 @@ def get_lat_lon_from_location(location_name):
         return location.latitude, location.longitude
     else:
         raise ValueError("Location not found")
-
 
 @app.route('/planet', methods=['POST'])
 def get_planet_positions():
@@ -87,9 +84,9 @@ def get_planet_positions():
         cusp_list = list(cusps) + [cusps[0] + 360]
 
         for name, planet in planets.items():
-            result = swe.calc_ut(jd, planet)
-            lon = result[0] % 360
-            speed_lon = result[3]
+            position, ret_flags = swe.calc_ut(jd, planet)
+            lon = position[0] % 360
+            speed_lon = position[3]
             deg = lon % 30
             sign_index = int(lon / 30)
             sign = signs[sign_index]
@@ -113,7 +110,6 @@ def get_planet_positions():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
-
 
 if __name__ == '__main__':
     app.run(debug=True)
