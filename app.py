@@ -5,16 +5,19 @@ import swisseph as swe
 from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
-signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+signs = [
+    "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+    "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+]
 
-# JST to UTC
+# 日本時間（JST）→ UTC に変換
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
     dt_utc = dt_jst.astimezone(pytz.utc)
     return dt_utc
 
-# Location geocode
+# 都市名から緯度経度を取得
 def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(location_name)
@@ -33,6 +36,7 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
+        # Location handling
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
@@ -42,9 +46,11 @@ def get_planet_positions():
             return jsonify({"error": "Location not provided"}), 400
 
         dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
-        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, dt_utc.hour + dt_utc.minute / 60.0)
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
+                        dt_utc.hour + dt_utc.minute / 60.0)
 
         swe.set_topo(longitude, latitude, 0)
+        swe.set_ephe_path('.')
 
         planets = {
             "Sun": swe.SUN,
@@ -63,16 +69,17 @@ def get_planet_positions():
 
         results = {}
         planet_houses = {}
-        retrogrades = {}
+        retrograde_status = {}
 
+        # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
         cusp_list = list(cusps) + [cusps[0] + 360]
-        houses = {}
+        house_signs = {}
         for i in range(12):
-            deg = cusp_list[i] % 360
-            degree = round(deg % 30, 1)
-            sign = signs[int(deg / 30)]
-            houses[f"House{i+1}"] = f"{sign} {degree}°"
+            degree = round(cusps[i] % 30, 1)
+            sign_index = int(cusps[i] / 30)
+            sign = signs[sign_index]
+            house_signs[f"House{i+1}"] = f"{sign} {degree}°"
 
         angles = {
             "ASC": round(ascmc[0], 1),
@@ -80,12 +87,12 @@ def get_planet_positions():
         }
 
         for name, planet in planets.items():
-            lon, lat, dist, speed_lon = swe.calc_ut(jd, planet)[0:4]
+            lon, lat, speed_lon = swe.calc_ut(jd, planet)[0:3]
             degree = round(lon % 30, 1)
             sign_index = int(lon / 30)
             sign = signs[sign_index]
             results[name] = f"{sign} {degree}°"
-            retrogrades[name] = speed_lon < 0
+            retrograde_status[name] = "R" if speed_lon < 0 else "D"
 
             for i in range(12):
                 if cusp_list[i] <= lon < cusp_list[i+1]:
@@ -97,9 +104,9 @@ def get_planet_positions():
             "latitude": latitude,
             "longitude": longitude,
             "planets": results,
-            "retrograde_status": retrogrades,
+            "retrograde_status": retrograde_status,
             "planet_houses": planet_houses,
-            "houses": houses,
+            "houses": house_signs,
             "angles": angles
         })
     except Exception as e:
