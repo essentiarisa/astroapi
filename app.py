@@ -5,7 +5,8 @@ import swisseph as swe
 from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
-signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+         "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
@@ -43,7 +44,6 @@ def get_planet_positions():
         dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
         jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, dt_utc.hour + dt_utc.minute / 60.0)
 
-        # Set topocentric position
         swe.set_topo(longitude, latitude, 0)
 
         planets = {
@@ -64,7 +64,6 @@ def get_planet_positions():
         results = {}
         planet_houses = {}
 
-        # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
         houses = {f"House{i+1}": round(cusps[i], 2) for i in range(12)}
         angles = {
@@ -72,17 +71,15 @@ def get_planet_positions():
             "MC": round(ascmc[1], 2)
         }
 
-        # 天体位置とハウス割り当て
-        cusp_list = list(cusps) + [cusps[0] + 360]  # for wrapping
+        cusp_list = list(cusps) + [cusps[0] + 360]
+
         for name, planet in planets.items():
-            result = swe.calc_ut(jd, planet)
-            lon = result[0]
+            lon, _ = swe.calc_ut(jd, planet)
             degree = int(lon % 30)
             sign_index = int(lon / 30)
             sign = signs[sign_index]
             results[name] = f"{sign} {degree}°"
 
-            # ハウス番号判定
             for i in range(12):
                 if cusp_list[i] <= lon < cusp_list[i+1]:
                     planet_houses[name] = f"House {i+1}"
@@ -97,6 +94,7 @@ def get_planet_positions():
             "houses": houses,
             "angles": angles
         })
+
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
