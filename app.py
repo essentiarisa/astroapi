@@ -5,7 +5,7 @@ import swisseph as swe
 from geopy.geocoders import Nominatim
 
 app = Flask(__name__)
-swe.set_ephe_path('.')  # Ephemerisファイルのパス（必要に応じて設定）
+signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo", "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
@@ -13,7 +13,7 @@ def convert_jst_to_utc(year, month, day, hour, minute):
     dt_utc = dt_jst.astimezone(pytz.utc)
     return dt_utc
 
-def get_coordinates_from_location(location_name):
+def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(location_name)
     if location:
@@ -31,20 +31,20 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
-        # 日本時間 → UTC
-        dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
-
-        # 緯度経度を取得
+        # Location handling
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
         elif 'location' in data:
-            latitude, longitude = get_coordinates_from_location(data['location'])
+            latitude, longitude = get_lat_lon_from_location(data['location'])
         else:
-            return jsonify({"error": "Location information is missing"}), 400
+            return jsonify({"error": "Location not provided"}), 400
 
-        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
-                        dt_utc.hour + dt_utc.minute / 60.0)
+        dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, dt_utc.hour + dt_utc.minute / 60.0)
+
+        # Set topocentric position
+        swe.set_topo(longitude, latitude, 0)
 
         planets = {
             "Sun": swe.SUN,
@@ -62,32 +62,41 @@ def get_planet_positions():
         }
 
         results = {}
-        signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                 "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
-
-        for name, planet in planets.items():
-            lon, lat, dist, speed_lon, speed_lat, speed_dist = swe.calc_ut(jd, planet)
-            degree = int(lon % 30)
-            sign_index = int(lon / 30)
-            results[name] = f"{signs[sign_index]} {degree}°"
+        planet_houses = {}
 
         # ハウス計算（Porphyry方式）
-        hsys = 'P'
-        ascmc, cusps = swe.houses(jd, latitude, longitude, hsys)
-        house_data = {f"House{i+1}": round(deg, 2) for i, deg in enumerate(cusps)}
-        house_data.update({
+        cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
+        houses = {f"House{i+1}": round(cusps[i], 2) for i in range(12)}
+        angles = {
             "ASC": round(ascmc[0], 2),
             "MC": round(ascmc[1], 2)
-        })
+        }
+
+        # 天体位置とハウス割り当て
+        cusp_list = list(cusps) + [cusps[0] + 360]  # for wrapping
+        for name, planet in planets.items():
+            result = swe.calc_ut(jd, planet)
+            lon = result[0]
+            degree = int(lon % 30)
+            sign_index = int(lon / 30)
+            sign = signs[sign_index]
+            results[name] = f"{sign} {degree}°"
+
+            # ハウス番号判定
+            for i in range(12):
+                if cusp_list[i] <= lon < cusp_list[i+1]:
+                    planet_houses[name] = f"House {i+1}"
+                    break
 
         return jsonify({
             "input_datetime_utc": dt_utc.strftime("%Y-%m-%d %H:%M"),
             "latitude": latitude,
             "longitude": longitude,
             "planets": results,
-            "houses": house_data
+            "planet_houses": planet_houses,
+            "houses": houses,
+            "angles": angles
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
