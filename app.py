@@ -56,23 +56,36 @@ def get_planet_positions():
             "Saturn": swe.SATURN,
             "Uranus": swe.URANUS,
             "Neptune": swe.NEPTUNE,
-            "Pluto": swe.PLUTO
+            "Pluto": swe.PLUTO,
+            "MeanNode": swe.MEAN_NODE,
+            "TrueNode": swe.TRUE_NODE
         }
 
         results = {}
+        signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+                 "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
+
         for name, planet in planets.items():
             lon, _ = swe.calc_ut(jd, planet)
             degree = int(lon % 30)
             sign_index = int(lon / 30)
-            signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
-                     "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
             results[name] = f"{signs[sign_index]} {degree}°"
+
+        # ハウス計算（Porphyry方式）
+        hsys = 'P'
+        ascmc, cusps = swe.houses(jd, latitude, longitude, hsys)
+        house_data = {f"House{i+1}": round(deg, 2) for i, deg in enumerate(cusps)}
+        house_data.update({
+            "ASC": round(ascmc[0], 2),
+            "MC": round(ascmc[1], 2)
+        })
 
         return jsonify({
             "input_datetime_utc": dt_utc.strftime("%Y-%m-%d %H:%M"),
             "latitude": latitude,
             "longitude": longitude,
-            "planets": results
+            "planets": results,
+            "houses": house_data
         })
 
     except Exception as e:
