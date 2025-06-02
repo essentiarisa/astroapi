@@ -66,7 +66,7 @@ def get_planet_positions():
                  "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
         for name, planet in planets.items():
-            lon, _ = swe.calc_ut(jd, planet)
+            lon, lat, dist, speed_lon, speed_lat, speed_dist = swe.calc_ut(jd, planet)
             degree = int(lon % 30)
             sign_index = int(lon / 30)
             results[name] = f"{signs[sign_index]} {degree}°"
