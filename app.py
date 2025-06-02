@@ -32,7 +32,6 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
-        # Location handling
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
