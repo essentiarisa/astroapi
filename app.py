@@ -35,7 +35,6 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
-        # Location handling
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
@@ -48,7 +47,6 @@ def get_planet_positions():
         jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
                         dt_utc.hour + dt_utc.minute / 60.0)
 
-        # Set topocentric position
         swe.set_topo(longitude, latitude, 0)
 
         planets = {
@@ -70,7 +68,6 @@ def get_planet_positions():
         planet_houses = {}
         retrogrades = {}
 
-        # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
         houses = {}
         cusp_signs = {}
@@ -87,17 +84,17 @@ def get_planet_positions():
             "MC": round(ascmc[1], 2)
         }
 
-        # ハウス判定用カスプ +360 wrap
         cusp_list = list(cusps) + [cusps[0] + 360]
 
         for name, planet in planets.items():
-            result, ret = swe.calc_ut(jd, planet)
+            result = swe.calc_ut(jd, planet)
             lon = result[0] % 360
+            speed_lon = result[3]
             deg = lon % 30
             sign_index = int(lon / 30)
             sign = signs[sign_index]
             results[name] = f"{sign} {deg:.1f}°"
-            retrogrades[name] = ret[0] < 0  # 逆行判定
+            retrogrades[name] = speed_lon < 0
 
             for i in range(12):
                 if cusp_list[i] <= lon < cusp_list[i + 1]:
