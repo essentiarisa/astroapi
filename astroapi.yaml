@@ -1,9 +1,8 @@
-openapi: 3.0.0
+openapi: "3.1.0"
 info:
-  title: AstroAPI - Planet Positions
-  version: 1.0.0
-  description: |
-    指定した日時と場所に基づいて、天体の位置・星座・ハウス・逆行情報を返すAPIです。
+  title: Astro API
+  version: "1.0.0"
+  description: 惑星の位置、ハウス、逆行情報などを取得するAPI
 
 servers:
   - url: https://astroapi-eixi.onrender.com
@@ -11,8 +10,8 @@ servers:
 paths:
   /planet:
     post:
-      summary: 天体位置を取得
-      description: 指定の日時と位置情報から、各天体の星座・度数・ハウス番号・逆行情報などを取得します。
+      operationId: getPlanetPositions
+      summary: 惑星の位置とハウス、逆行情報を取得
       requestBody:
         required: true
         content:
@@ -37,7 +36,7 @@ paths:
                   example: 30
                 location:
                   type: string
-                  example: "Tokyo"
+                  example: Tokyo, Japan
                 latitude:
                   type: number
                   example: 35.6895
@@ -51,8 +50,8 @@ paths:
                 - hour
                 - minute
       responses:
-        '200':
-          description: 天体の位置情報を含むJSONデータを返します
+        "200":
+          description: 惑星データ取得成功
           content:
             application/json:
               schema:
@@ -63,25 +62,30 @@ paths:
                     example: "1979-05-05 03:51"
                   latitude:
                     type: number
+                    example: 35.7
                   longitude:
                     type: number
+                    example: 139.77
                   planets:
                     type: object
                     additionalProperties:
                       type: string
                     example:
                       Sun: "Taurus 14.1°"
+                      Moon: "Leo 24.7°"
                   planet_houses:
                     type: object
                     additionalProperties:
                       type: string
                     example:
                       Sun: "House 9"
+                      Moon: "House 12"
                   retrograde:
                     type: object
                     additionalProperties:
                       type: boolean
                     example:
+                      Saturn: true
                       Sun: false
                   houses:
                     type: object
@@ -89,15 +93,18 @@ paths:
                       type: string
                     example:
                       House1: "Virgo 5.1°"
+                      House2: "Virgo 30.0°"
                   angles:
                     type: object
                     properties:
                       ASC:
                         type: number
+                        example: 155.12
                       MC:
                         type: number
-        '400':
-          description: 入力エラーまたは位置情報が不正です
+                        example: 62.04
+        "400":
+          description: 不正なリクエストまたはエラー
           content:
             application/json:
               schema:
@@ -105,3 +112,4 @@ paths:
                 properties:
                   error:
                     type: string
+                    example: "Location not found"
