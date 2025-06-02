@@ -76,12 +76,11 @@ def get_planet_positions():
         for name, planet in planets.items():
             position_data, _ = swe.calc_ut(jd, planet)
             lon = position_data[0]
-            degree = int(lon % 30)
+            degree_in_sign = round(lon % 30, 2)
             sign_index = int(lon // 30)
             sign = signs[sign_index]
-            results[name] = f"{sign} {degree}°"
+            results[name] = f"{sign} {degree_in_sign}°"
 
-            # ハウス番号の割り当て
             for i in range(12):
                 if cusp_list[i] <= lon < cusp_list[i+1]:
                     planet_houses[name] = f"House {i+1}"
