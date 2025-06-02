@@ -42,8 +42,9 @@ def get_planet_positions():
 
         results = {}
         for name, planet in planets.items():
-            lon, lat, dist, speed_lon, speed_lat, speed_dist = swe.calc_ut(jd, planet)
-            results[name] = round(lon, 2)  # 緯度は省略
+            position_data, error = swe.calc_ut(jd, planet)
+            lon = position_data[0]
+            results[name] = round(lon, 2)
 
         return jsonify({
             "input_datetime_utc": dt_utc.strftime("%Y-%m-%d %H:%M"),
