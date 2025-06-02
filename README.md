@@ -1,2 +1,2 @@
-# astroapi
-占星術API for GPTs
+# Astro API
+Simple astrology API using Swiss Ephemeris and Flask.
