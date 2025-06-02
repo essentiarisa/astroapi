@@ -11,18 +11,25 @@ signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
-    return dt_jst.astimezone(pytz.utc)
+    dt_utc = dt_jst.astimezone(pytz.utc)
+    return dt_utc
 
 def get_lat_lon_from_location(location_name):
-    geolocator = Nominatim(user_agent="astro_app", timeout=5)
+    geolocator = Nominatim(user_agent="astro_app")
     location = geolocator.geocode(location_name)
     if location:
         return location.latitude, location.longitude
     else:
         raise ValueError("Location not found")
 
+def format_angle(angle):
+    degree = round(angle % 30, 2)
+    sign_index = int(angle / 30) % 12
+    sign = signs[sign_index]
+    return f"{sign} {degree:.1f}°"
+
 @app.route('/planet', methods=['POST'])
-def get_planet_positions():
+def get_astrology_data():
     data = request.json
     try:
         year = int(data['year'])
@@ -31,7 +38,6 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
-        # 緯度経度処理
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
@@ -61,29 +67,36 @@ def get_planet_positions():
             "TrueNode": swe.TRUE_NODE
         }
 
-        results = {}
-        planet_houses = {}
-
         # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
-        cusp_list = list(cusps) + [cusps[0] + 360]
-        houses = {f"House{i+1}": round(cusps[i], 2) for i in range(12)}
+        cusp_list = list(cusps) + [cusps[0] + 360]  # for wrapping
+
+        houses = {}
+        houses_formatted = {}
+        for i in range(12):
+            angle = round(cusps[i], 2)
+            houses[f"House{i+1}"] = angle
+            houses_formatted[f"House{i+1}"] = format_angle(angle)
+
         angles = {
             "ASC": round(ascmc[0], 2),
             "MC": round(ascmc[1], 2)
         }
 
-        for name, planet in planets.items():
-            position_data, _ = swe.calc_ut(jd, planet)
-            lon = position_data[0]
-            degree_in_sign = round(lon % 30, 2)
-            sign_index = int(lon // 30)
-            sign = signs[sign_index]
-            results[name] = f"{sign} {degree_in_sign}°"
+        results = {}
+        planet_houses = {}
 
+        for name, planet in planets.items():
+            lon = swe.calc_ut(jd, planet)[0]
+            results[name] = {
+                "degree": round(lon, 2),
+                "formatted": format_angle(lon)
+            }
+
+            # ハウス番号判定
             for i in range(12):
-                if cusp_list[i] <= lon < cusp_list[i+1]:
-                    planet_houses[name] = f"House {i+1}"
+                if cusp_list[i] <= lon < cusp_list[i + 1]:
+                    planet_houses[name] = f"House {i + 1}"
                     break
 
         return jsonify({
@@ -93,6 +106,7 @@ def get_planet_positions():
             "planets": results,
             "planet_houses": planet_houses,
             "houses": houses,
+            "houses_formatted": houses_formatted,
             "angles": angles
         })
 
