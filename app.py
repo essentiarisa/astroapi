@@ -64,6 +64,7 @@ def get_planet_positions():
         results = {}
         planet_houses = {}
 
+        # ハウス計算（Porphyry方式）
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
         cusp_list = list(cusps) + [cusps[0] + 360]
         houses = {f"House{i+1}": round(cusps[i], 2) for i in range(12)}
@@ -73,12 +74,14 @@ def get_planet_positions():
         }
 
         for name, planet in planets.items():
-            lon, _ = swe.calc_ut(jd, planet)
+            position_data, _ = swe.calc_ut(jd, planet)
+            lon = position_data[0]
             degree = int(lon % 30)
-            sign_index = int(lon / 30)
+            sign_index = int(lon // 30)
             sign = signs[sign_index]
             results[name] = f"{sign} {degree}°"
 
+            # ハウス番号の割り当て
             for i in range(12):
                 if cusp_list[i] <= lon < cusp_list[i+1]:
                     planet_houses[name] = f"House {i+1}"
