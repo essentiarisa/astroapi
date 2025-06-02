@@ -11,11 +11,10 @@ signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
 def convert_jst_to_utc(year, month, day, hour, minute):
     jst = pytz.timezone('Asia/Tokyo')
     dt_jst = datetime(year, month, day, hour, minute, tzinfo=jst)
-    dt_utc = dt_jst.astimezone(pytz.utc)
-    return dt_utc
+    return dt_jst.astimezone(pytz.utc)
 
 def get_lat_lon_from_location(location_name):
-    geolocator = Nominatim(user_agent="astro_app")
+    geolocator = Nominatim(user_agent="astro_app", timeout=5)
     location = geolocator.geocode(location_name)
     if location:
         return location.latitude, location.longitude
@@ -32,6 +31,7 @@ def get_planet_positions():
         hour = int(data['hour'])
         minute = int(data['minute'])
 
+        # 緯度経度処理
         if 'latitude' in data and 'longitude' in data:
             latitude = float(data['latitude'])
             longitude = float(data['longitude'])
@@ -41,7 +41,8 @@ def get_planet_positions():
             return jsonify({"error": "Location not provided"}), 400
 
         dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
-        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day, dt_utc.hour + dt_utc.minute / 60.0)
+        jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
+                        dt_utc.hour + dt_utc.minute / 60.0)
 
         swe.set_topo(longitude, latitude, 0)
 
@@ -64,13 +65,12 @@ def get_planet_positions():
         planet_houses = {}
 
         cusps, ascmc = swe.houses(jd, latitude, longitude, b'P')
+        cusp_list = list(cusps) + [cusps[0] + 360]
         houses = {f"House{i+1}": round(cusps[i], 2) for i in range(12)}
         angles = {
             "ASC": round(ascmc[0], 2),
             "MC": round(ascmc[1], 2)
         }
-
-        cusp_list = list(cusps) + [cusps[0] + 360]
 
         for name, planet in planets.items():
             lon, _ = swe.calc_ut(jd, planet)
