@@ -2,7 +2,7 @@ openapi: "3.1.0"
 info:
   title: Astro API
   version: "1.0.0"
-  description: 惑星の位置、ハウス、逆行情報などを取得するAPI
+  description: 惑星の位置、ハウス、逆行情報などを取得する占星術API
 
 servers:
   - url: https://astroapi-eixi.onrender.com
@@ -93,7 +93,7 @@ paths:
                       type: string
                     example:
                       House1: "Virgo 5.1°"
-                      House2: "Virgo 30.0°"
+                      House2: "Libra 3.4°"
                   angles:
                     type: object
                     properties:
