@@ -1,156 +1,227 @@
 openapi: 3.1.0
 info:
   title: Astro API
-  description: 占星術API。出生図・トランジット・ソーラーアークの天体データを取得できます。
-  version: "1.0.0"
-
+  version: 1.0.0
+  description: 惑星の位置、ハウス、逆行情報などを取得する占星術API
 servers:
   - url: https://astroapi-eixi.onrender.com
 
 paths:
   /planet:
     post:
-      summary: 出生図の計算
-      operationId: getNatalChart
+      operationId: getPlanetPositions
+      summary: 惑星の位置とハウス、逆行情報を取得
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/PlanetRequest'
+              type: object
+              properties:
+                year:
+                  type: integer
+                  example: 1979
+                month:
+                  type: integer
+                  example: 5
+                day:
+                  type: integer
+                  example: 5
+                hour:
+                  type: integer
+                  example: 12
+                minute:
+                  type: integer
+                  example: 30
+                location:
+                  type: string
+                  example: Tokyo, Japan
+                latitude:
+                  type: number
+                  example: 35.6895
+                longitude:
+                  type: number
+                  example: 139.6917
+              required:
+                - year
+                - month
+                - day
+                - hour
+                - minute
       responses:
-        '200':
-          description: 成功レスポンス
+        "200":
+          description: 惑星データ取得成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/PlanetResponse'
+                type: object
+                properties:
+                  input_datetime_utc:
+                    type: string
+                    example: 1979-05-05 03:51
+                  latitude:
+                    type: number
+                    example: 35.7
+                  longitude:
+                    type: number
+                    example: 139.77
+                  planets:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  planet_houses:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  retrograde:
+                    type: object
+                    additionalProperties:
+                      type: boolean
+                  houses:
+                    type: object
+                    additionalProperties:
+                      type: string
+                  angles:
+                    type: object
+                    properties:
+                      ASC:
+                        type: number
+                        example: 155.12
+                      MC:
+                        type: number
+                        example: 62.04
+        "400":
+          description: 不正なリクエストまたはエラー
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /transit:
     post:
-      summary: トランジットの計算
-      operationId: getTransit
+      operationId: getTransitData
+      summary: トランジットの天体位置を取得（ハウスなし）
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/TransitRequest'
+              type: object
+              properties:
+                year:
+                  type: integer
+                  example: 2024
+                month:
+                  type: integer
+                  example: 6
+                day:
+                  type: integer
+                  example: 1
+                hour:
+                  type: integer
+                  example: 14
+                minute:
+                  type: integer
+                  example: 0
+              required:
+                - year
+                - month
+                - day
+                - hour
+                - minute
       responses:
-        '200':
-          description: 成功レスポンス
+        "200":
+          description: トランジットデータ取得成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TransitResponse'
+                type: object
+                properties:
+                  input_datetime_utc:
+                    type: string
+                    example: 2024-06-01 05:00
+                  planets:
+                    type: object
+                    additionalProperties:
+                      type: string
+        "400":
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
 
   /solararc:
     post:
-      summary: ソーラーアークの計算
-      operationId: getSolarArc
+      operationId: getSolarArcProgressed
+      summary: ソーラーアーク（1年=1度）の天体位置を取得
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SolarArcRequest'
+              type: object
+              properties:
+                birth_year:
+                  type: integer
+                  example: 1990
+                birth_month:
+                  type: integer
+                  example: 3
+                birth_day:
+                  type: integer
+                  example: 15
+                birth_hour:
+                  type: integer
+                  example: 12
+                birth_minute:
+                  type: integer
+                  example: 0
+                target_year:
+                  type: integer
+                  example: 2025
+                target_month:
+                  type: integer
+                  example: 6
+                target_day:
+                  type: integer
+                  example: 1
+              required:
+                - birth_year
+                - birth_month
+                - birth_day
+                - birth_hour
+                - birth_minute
+                - target_year
+                - target_month
+                - target_day
       responses:
-        '200':
-          description: 成功レスポンス
+        "200":
+          description: ソーラーアークデータ取得成功
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SolarArcResponse'
-
-components:
-  schemas:
-    PlanetRequest:
-      type: object
-      properties:
-        year:
-          type: integer
-        month:
-          type: integer
-        day:
-          type: integer
-        hour:
-          type: integer
-        minute:
-          type: integer
-        location:
-          type: string
-        latitude:
-          type: number
-        longitude:
-          type: number
-      required: [year, month, day, hour, minute]
-
-    PlanetResponse:
-      type: object
-      properties:
-        input_datetime_utc:
-          type: string
-        latitude:
-          type: number
-        longitude:
-          type: number
-        planets:
-          type: object
-          additionalProperties:
-            type: string
-        planet_houses:
-          type: object
-          additionalProperties:
-            type: string
-        retrograde:
-          type: object
-          additionalProperties:
-            type: boolean
-        houses:
-          type: object
-          additionalProperties:
-            type: string
-        angles:
-          type: object
-          additionalProperties:
-            type: number
-
-    TransitRequest:
-      $ref: '#/components/schemas/PlanetRequest'
-
-    TransitResponse:
-      type: object
-      properties:
-        input_datetime_utc:
-          type: string
-        latitude:
-          type: number
-        longitude:
-          type: number
-        planets:
-          type: object
-          additionalProperties:
-            type: string
-        retrograde:
-          type: object
-          additionalProperties:
-            type: boolean
-
-    SolarArcRequest:
-      type: object
-      properties:
-        natal:
-          $ref: '#/components/schemas/PlanetRequest'
-        target:
-          $ref: '#/components/schemas/PlanetRequest'
-      required: [natal, target]
-
-    SolarArcResponse:
-      type: object
-      properties:
-        solar_arc:
-          type: number
-        progressed_planets:
-          type: object
-          additionalProperties:
-            type: string
+                type: object
+                properties:
+                  solar_arc_date_utc:
+                    type: string
+                    example: 2025-06-01 00:00
+                  progressed_planets:
+                    type: object
+                    additionalProperties:
+                      type: string
+        "400":
+          description: 不正なリクエスト
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
