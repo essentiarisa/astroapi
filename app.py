@@ -46,9 +46,9 @@ def get_planet_positions():
         angles = {"ASC":round(ascmc[0],2),"MC":round(ascmc[1],2)}
 
         for name,pl in planets.items():
-            result, flags = swe.calc_ut(jd, pl)
-            lon_deg = result[0] % 360
-            speed_long = result[3]
+            result = swe.calc_ut(jd, pl)
+            lon_deg = result[0][0] % 360
+            speed_long = result[0][3]
             sign = signs[int(lon_deg / 30)]
             results[name] = f"{sign} {round(lon_deg % 30, 1)}°"
             retro[name] = speed_long < 0
@@ -66,6 +66,47 @@ def get_planet_positions():
         })
     except Exception as e:
         return jsonify({"error":str(e)}),400
+
+@app.route('/transit', methods=['POST'])
+def get_transit_positions():
+    try:
+        data = request.json
+        now = datetime.now(pytz.timezone('Asia/Tokyo'))
+        year, month, day, hour, minute = now.year, now.month, now.day, now.hour, now.minute
+
+        if 'latitude' in data and 'longitude' in data:
+            lat, lon = float(data['latitude']), float(data['longitude'])
+        else:
+            lat, lon = get_lat_lon_from_location("Tokyo, Japan")
+
+        dt = convert_to_utc(year, month, day, hour, minute, lat, lon)
+        jd = swe.julday(dt.year, dt.month, dt.day, dt.hour + dt.minute/60)
+        swe.set_topo(lon, lat, 0)
+
+        planets = {"Sun":swe.SUN,"Moon":swe.MOON,"Mercury":swe.MERCURY,
+                   "Venus":swe.VENUS,"Mars":swe.MARS,"Jupiter":swe.JUPITER,
+                   "Saturn":swe.SATURN,"Uranus":swe.URANUS,"Neptune":swe.NEPTUNE,
+                   "Pluto":swe.PLUTO,"MeanNode":swe.MEAN_NODE,"TrueNode":swe.TRUE_NODE}
+
+        results, retro = {}, {}
+
+        for name, pl in planets.items():
+            result = swe.calc_ut(jd, pl)
+            lon_deg = result[0][0] % 360
+            speed_long = result[0][3]
+            sign = signs[int(lon_deg / 30)]
+            results[name] = f"{sign} {round(lon_deg % 30, 1)}°"
+            retro[name] = speed_long < 0
+
+        return jsonify({
+            "transit_datetime_utc": dt.strftime("%Y-%m-%d %H:%M"),
+            "latitude": lat,
+            "longitude": lon,
+            "planets": results,
+            "retrograde": retro
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
 
 if __name__=='__main__':
     app.run(debug=True)
