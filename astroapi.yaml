@@ -5,12 +5,11 @@ info:
   description: 惑星の位置、ハウス、逆行情報などを取得する占星術API
 servers:
   - url: https://astroapi-eixi.onrender.com
-
 paths:
   /planet:
     post:
       operationId: getPlanetPositions
-      summary: 出生図の惑星位置、ハウス、逆行情報を取得
+      summary: 惑星の位置とハウス、逆行情報を取得
       requestBody:
         required: true
         content:
@@ -20,28 +19,20 @@ paths:
               properties:
                 year:
                   type: integer
-                  example: 1979
                 month:
                   type: integer
-                  example: 5
                 day:
                   type: integer
-                  example: 5
                 hour:
                   type: integer
-                  example: 12
                 minute:
                   type: integer
-                  example: 30
                 location:
                   type: string
-                  example: Tokyo, Japan
                 latitude:
                   type: number
-                  example: 35.6895
                 longitude:
                   type: number
-                  example: 139.6917
               required:
                 - year
                 - month
@@ -58,7 +49,6 @@ paths:
                 properties:
                   input_datetime_utc:
                     type: string
-                    example: 1979-05-05 03:51
                   latitude:
                     type: number
                   longitude:
@@ -95,11 +85,10 @@ paths:
                 properties:
                   error:
                     type: string
-
   /transit:
     post:
-      operationId: getTransit
-      summary: 現在時刻・現在地のトランジット天体情報を取得（ハウス情報なし）
+      operationId: getTransitPositions
+      summary: 現在時刻または指定時刻における天体の位置（ハウスなし）
       requestBody:
         required: false
         content:
@@ -107,18 +96,25 @@ paths:
             schema:
               type: object
               properties:
+                year:
+                  type: integer
+                month:
+                  type: integer
+                day:
+                  type: integer
+                hour:
+                  type: integer
+                minute:
+                  type: integer
                 location:
                   type: string
-                  example: Tokyo, Japan
                 latitude:
                   type: number
-                  example: 35.6895
                 longitude:
                   type: number
-                  example: 139.6917
       responses:
         "200":
-          description: トランジット情報取得成功
+          description: トランジット天体位置取得成功
           content:
             application/json:
               schema:
@@ -126,7 +122,6 @@ paths:
                 properties:
                   datetime_utc:
                     type: string
-                    example: 2025-06-05 10:00
                   planets:
                     type: object
                     additionalProperties:
@@ -144,11 +139,10 @@ paths:
                 properties:
                   error:
                     type: string
-
   /solararc:
     post:
-      operationId: getSolarArc
-      summary: Solar Arc進行法による天体の進行位置を取得（ハウス情報なし）
+      operationId: getSolarArcPositions
+      summary: Solar Arc（1年1度法）による天体の進行位置
       requestBody:
         required: true
         content:
@@ -158,52 +152,46 @@ paths:
               properties:
                 birth_year:
                   type: integer
-                  example: 1985
                 birth_month:
                   type: integer
-                  example: 7
                 birth_day:
                   type: integer
-                  example: 3
                 birth_hour:
                   type: integer
-                  example: 14
                 birth_minute:
                   type: integer
-                  example: 30
-                location:
-                  type: string
-                  example: Tokyo, Japan
-                target_year:
+                current_year:
                   type: integer
-                  example: 2025
-                target_month:
+                current_month:
                   type: integer
-                  example: 6
-                target_day:
+                current_day:
                   type: integer
-                  example: 5
+                current_hour:
+                  type: integer
+                current_minute:
+                  type: integer
               required:
                 - birth_year
                 - birth_month
                 - birth_day
                 - birth_hour
                 - birth_minute
-                - target_year
-                - target_month
-                - target_day
+                - current_year
+                - current_month
+                - current_day
+                - current_hour
+                - current_minute
       responses:
         "200":
-          description: Solar Arc進行位置取得成功
+          description: Solar Arc進行天体位置取得成功
           content:
             application/json:
               schema:
                 type: object
                 properties:
-                  progressed_date_utc:
-                    type: string
-                    example: 2025-06-05 00:00
-                  planets:
+                  solar_arc_degree:
+                    type: number
+                  progressed_planets:
                     type: object
                     additionalProperties:
                       type: string
