@@ -1,5 +1,6 @@
-Flask==2.3.2  
-pytz==2024.1  
-pyswisseph  
-gunicorn  
+Flask==2.3.2
+pytz==2024.1
+pyswisseph
+gunicorn
 geopy
+timezonefinder
