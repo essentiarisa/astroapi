@@ -108,5 +108,48 @@ def get_transit_positions():
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
+@app.route('/solararc', methods=['POST'])
+def get_solar_arc_positions():
+    try:
+        data = request.json
+        # Natal data
+        birth_year, birth_month, birth_day = int(data['birth_year']), int(data['birth_month']), int(data['birth_day'])
+        birth_hour, birth_minute = int(data['birth_hour']), int(data['birth_minute'])
+
+        if 'latitude' in data and 'longitude' in data:
+            lat, lon = float(data['latitude']), float(data['longitude'])
+        else:
+            lat, lon = get_lat_lon_from_location(data['location'])
+
+        now = datetime.now(pytz.timezone('Asia/Tokyo'))
+        # Calculate Julian Days
+        natal_utc = convert_to_utc(birth_year, birth_month, birth_day, birth_hour, birth_minute, lat, lon)
+        natal_jd = swe.julday(natal_utc.year, natal_utc.month, natal_utc.day, natal_utc.hour + natal_utc.minute / 60)
+        current_utc = convert_to_utc(now.year, now.month, now.day, now.hour, now.minute, lat, lon)
+        current_jd = swe.julday(current_utc.year, current_utc.month, current_utc.day, current_utc.hour + current_utc.minute / 60)
+
+        arc = current_jd - natal_jd  # Solar arc in days
+
+        planets = {"Sun":swe.SUN,"Moon":swe.MOON,"Mercury":swe.MERCURY,
+                   "Venus":swe.VENUS,"Mars":swe.MARS,"Jupiter":swe.JUPITER,
+                   "Saturn":swe.SATURN,"Uranus":swe.URANUS,"Neptune":swe.NEPTUNE,
+                   "Pluto":swe.PLUTO,"MeanNode":swe.MEAN_NODE,"TrueNode":swe.TRUE_NODE}
+
+        results = {}
+        for name, pl in planets.items():
+            result = swe.calc_ut(natal_jd, pl)
+            lon_deg = (result[0][0] + arc) % 360
+            sign = signs[int(lon_deg / 30)]
+            results[name] = f"{sign} {round(lon_deg % 30, 1)}°"
+
+        return jsonify({
+            "solar_arc_datetime_utc": current_utc.strftime("%Y-%m-%d %H:%M"),
+            "latitude": lat,
+            "longitude": lon,
+            "planets": results
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 if __name__=='__main__':
     app.run(debug=True)
