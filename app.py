@@ -3,21 +3,16 @@ from datetime import datetime
 import pytz
 import swisseph as swe
 from geopy.geocoders import Nominatim
-from timezonefinder import TimezoneFinder
 
 app = Flask(__name__)
 signs = ["Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
          "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"]
 
-def convert_to_utc(year, month, day, hour, minute, latitude, longitude):
-    tf = TimezoneFinder()
-    tz_name = tf.timezone_at(lat=latitude, lng=longitude)
-    if not tz_name:
-        raise ValueError("Timezone not found")
-    local_tz = pytz.timezone(tz_name)
-    local_dt = datetime(year, month, day, hour, minute)
-    localized_dt = local_tz.localize(local_dt, is_dst=None)
-    return localized_dt.astimezone(pytz.utc)
+def convert_jst_to_utc(year, month, day, hour, minute):
+    jst = pytz.timezone('Asia/Tokyo')
+    dt_jst = jst.localize(datetime(year, month, day, hour, minute))
+    dt_utc = dt_jst.astimezone(pytz.utc)
+    return dt_utc
 
 def get_lat_lon_from_location(location_name):
     geolocator = Nominatim(user_agent="astro_app")
@@ -45,7 +40,7 @@ def get_planet_positions():
         else:
             return jsonify({"error": "Location not provided"}), 400
 
-        dt_utc = convert_to_utc(year, month, day, hour, minute, latitude, longitude)
+        dt_utc = convert_jst_to_utc(year, month, day, hour, minute)
         jd = swe.julday(dt_utc.year, dt_utc.month, dt_utc.day,
                         dt_utc.hour + dt_utc.minute / 60.0)
 
@@ -89,18 +84,23 @@ def get_planet_positions():
         cusp_list = list(cusps) + [cusps[0] + 360]
 
         for name, planet in planets.items():
-            result, ret = swe.calc_ut(jd, planet)
-            lon = result[0] % 360
-            deg = lon % 30
-            sign_index = int(lon / 30)
-            sign = signs[sign_index]
-            results[name] = f"{sign} {deg:.1f}°"
-            retrogrades[name] = ret[0] < 0
+            calc_result = swe.calc_ut(jd, planet)
 
-            for i in range(12):
-                if cusp_list[i] <= lon < cusp_list[i + 1]:
-                    planet_houses[name] = f"House {i+1}"
-                    break
+            if isinstance(calc_result, tuple) and len(calc_result) >= 2:
+                position, speed = calc_result
+                lon = position[0] % 360
+                deg = lon % 30
+                sign_index = int(lon / 30)
+                sign = signs[sign_index]
+                results[name] = f"{sign} {deg:.1f}°"
+                retrogrades[name] = speed[0] < 0
+
+                for i in range(12):
+                    if cusp_list[i] <= lon < cusp_list[i + 1]:
+                        planet_houses[name] = f"House {i+1}"
+                        break
+            else:
+                raise ValueError(f"Unexpected data from swe.calc_ut() for {name}")
 
         return jsonify({
             "input_datetime_utc": dt_utc.strftime("%Y-%m-%d %H:%M"),
@@ -112,7 +112,6 @@ def get_planet_positions():
             "houses": cusp_signs,
             "angles": angles
         })
-
     except Exception as e:
         return jsonify({"error": str(e)}), 400
 
