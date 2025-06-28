@@ -1,4 +1,25 @@
-# 修正版 Solar Arc: 年齢×1度を基準に正確計算
+from flask import Flask, request, jsonify
+from datetime import datetime
+import pytz
+import swisseph as swe
+from geopy.geocoders import Nominatim
+from timezonefinder import TimezoneFinder
+
+app = Flask(__name__)
+signs = ["Aries","Taurus","Gemini","Cancer","Leo","Virgo","Libra","Scorpio","Sagittarius","Capricorn","Aquarius","Pisces"]
+
+def convert_to_utc(year,month,day,hour,minute,lat,lon):
+    tf = TimezoneFinder()
+    tz_name = tf.timezone_at(lat=lat,lng=lon)
+    local_dt = pytz.timezone(tz_name).localize(datetime(year,month,day,hour,minute),is_dst=None)
+    return local_dt.astimezone(pytz.utc)
+
+def get_lat_lon_from_location(name):
+    loc = Nominatim(user_agent="astro_app").geocode(name)
+    if loc: return loc.latitude, loc.longitude
+    raise ValueError("Location not found")
+
+# /solararcルート（年齢×1度法）
 @app.route('/solararc', methods=['POST'])
 def get_solar_arc_positions():
     try:
@@ -13,9 +34,8 @@ def get_solar_arc_positions():
 
         now = datetime.now(pytz.timezone('Asia/Tokyo'))
 
-        # 年齢を計算
         age = now.year - birth_year - ((now.month, now.day) < (birth_month, birth_day))
-        solar_arc = (age * 1.0) % 360  # 年齢×1度を360度内に正規化
+        solar_arc = (age * 1.0) % 360
 
         natal_utc = convert_to_utc(birth_year, birth_month, birth_day, birth_hour, birth_minute, lat, lon)
         natal_jd = swe.julday(natal_utc.year, natal_utc.month, natal_utc.day, natal_utc.hour + natal_utc.minute / 60)
@@ -40,3 +60,6 @@ def get_solar_arc_positions():
         })
     except Exception as e:
         return jsonify({"error": str(e)}), 400
+
+if __name__=='__main__':
+    app.run(debug=True)
