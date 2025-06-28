@@ -2,14 +2,14 @@ openapi: 3.1.0
 info:
   title: Astro API
   version: 1.0.0
-  description: 惑星の位置、ハウス、逆行情報などを取得する占星術API
+  description: 惑星の位置・ハウス・逆行情報を取得する占星術API
 servers:
   - url: https://astroapi-eixi.onrender.com
 paths:
   /planet:
     post:
       operationId: getPlanetPositions
-      summary: 惑星の位置とハウス、逆行情報を取得
+      summary: 惑星の位置・ハウス・逆行情報を取得（出生図）
       requestBody:
         required: true
         content:
@@ -17,78 +17,22 @@ paths:
             schema:
               type: object
               properties:
-                year:
-                  type: integer
-                month:
-                  type: integer
-                day:
-                  type: integer
-                hour:
-                  type: integer
-                minute:
-                  type: integer
-                location:
-                  type: string
-                latitude:
-                  type: number
-                longitude:
-                  type: number
-              required:
-                - year
-                - month
-                - day
-                - hour
-                - minute
+                year: {type: integer, example: 1979}
+                month: {type: integer, example: 5}
+                day: {type: integer, example: 5}
+                hour: {type: integer, example: 13}
+                minute: {type: integer, example: 10}
+                location: {type: string, example: Tokyo, Japan}
+                latitude: {type: number, example: 35.6895}
+                longitude: {type: number, example: 139.6917}
+              required: [year, month, day, hour, minute]
       responses:
         "200":
-          description: 惑星データ取得成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  input_datetime_utc:
-                    type: string
-                  latitude:
-                    type: number
-                  longitude:
-                    type: number
-                  planets:
-                    type: object
-                    additionalProperties:
-                      type: string
-                  planet_houses:
-                    type: object
-                    additionalProperties:
-                      type: string
-                  retrograde:
-                    type: object
-                    additionalProperties:
-                      type: boolean
-                  houses:
-                    type: object
-                    additionalProperties:
-                      type: string
-                  angles:
-                    type: object
-                    properties:
-                      ASC:
-                        type: number
-                      MC:
-                        type: number
-        "400":
-          description: 不正なリクエストまたはエラー
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+          description: 成功
   /transit:
     post:
       operationId: getTransitPositions
-      summary: 現在時刻または指定時刻における天体の位置（ハウスなし）
+      summary: 現在時刻のトランジット天体位置を取得
       requestBody:
         required: false
         content:
@@ -96,53 +40,16 @@ paths:
             schema:
               type: object
               properties:
-                year:
-                  type: integer
-                month:
-                  type: integer
-                day:
-                  type: integer
-                hour:
-                  type: integer
-                minute:
-                  type: integer
-                location:
-                  type: string
-                latitude:
-                  type: number
-                longitude:
-                  type: number
+                location: {type: string, example: Tokyo, Japan}
+                latitude: {type: number, example: 35.6895}
+                longitude: {type: number, example: 139.6917}
       responses:
         "200":
-          description: トランジット天体位置取得成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  datetime_utc:
-                    type: string
-                  planets:
-                    type: object
-                    additionalProperties:
-                      type: string
-                  retrograde:
-                    type: object
-                    additionalProperties:
-                      type: boolean
-        "400":
-          description: 不正なリクエストまたはエラー
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+          description: 成功
   /solararc:
     post:
       operationId: getSolarArcPositions
-      summary: Solar Arc（1年1度法）による天体の進行位置
+      summary: ソーラーアーク進行天体位置を取得
       requestBody:
         required: true
         content:
@@ -150,57 +57,15 @@ paths:
             schema:
               type: object
               properties:
-                birth_year:
-                  type: integer
-                birth_month:
-                  type: integer
-                birth_day:
-                  type: integer
-                birth_hour:
-                  type: integer
-                birth_minute:
-                  type: integer
-                current_year:
-                  type: integer
-                current_month:
-                  type: integer
-                current_day:
-                  type: integer
-                current_hour:
-                  type: integer
-                current_minute:
-                  type: integer
-              required:
-                - birth_year
-                - birth_month
-                - birth_day
-                - birth_hour
-                - birth_minute
-                - current_year
-                - current_month
-                - current_day
-                - current_hour
-                - current_minute
+                birth_year: {type: integer, example: 1979}
+                birth_month: {type: integer, example: 5}
+                birth_day: {type: integer, example: 5}
+                birth_hour: {type: integer, example: 13}
+                birth_minute: {type: integer, example: 10}
+                location: {type: string, example: Tokyo, Japan}
+                latitude: {type: number, example: 35.6895}
+                longitude: {type: number, example: 139.6917}
+              required: [birth_year, birth_month, birth_day, birth_hour, birth_minute]
       responses:
         "200":
-          description: Solar Arc進行天体位置取得成功
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  solar_arc_degree:
-                    type: number
-                  progressed_planets:
-                    type: object
-                    additionalProperties:
-                      type: string
-        "400":
-          description: 不正なリクエストまたはエラー
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  error:
-                    type: string
+          description: 成功
